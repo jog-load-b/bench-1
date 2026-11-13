@@ -1,0 +1,27 @@
+name: ci
+# market-benchmark (PLAN.md v2 §2): one job, about 3 minutes, on GitHub's runners. One trigger per test:
+# pull_request (a PR's own CI), merge_group (GitHub's queue), pushes to jog-merge/** (Jog Merge's queue tests).
+# The sleep comes first, so a failure costs as much as a pass. It fails when the checked-out tree holds both
+# files of a clash pair. Its last step prints the tree's id.
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: ["jog-merge/**"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: |
+          sleep 170
+          bad=0
+          for a in $(find . -path ./.git -prune -o -name '*.clash-a' -print); do
+            if [ -e "${a%.clash-a}.clash-b" ]; then echo "both sides of ${a%.clash-a} are here"; bad=1; fi
+          done
+          exit $bad
+      - name: tree
+        if: always()
+        run: echo "BENCH_TREE=$(git rev-parse 'HEAD^{tree}')"
