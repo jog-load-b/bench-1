@@ -1,0 +1,20 @@
+# market-benchmark: Mergify's setting M-10 (round 3). Present only during Mergify's runs.
+merge_queue:
+  max_parallel_checks: 10
+queue_rules:
+  - name: default
+    queue_conditions:
+      - base = main
+      - label = bench-ready
+    merge_conditions:
+      - check-success = build
+    merge_method: squash
+    batch_size: 1
+pull_request_rules:
+  - name: queue the benchmark's pull requests
+    conditions:
+      - base = main
+      - label = bench-ready
+    actions:
+      queue:
+        name: default
