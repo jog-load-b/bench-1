@@ -1,8 +1,9 @@
 name: ci
-# market-benchmark (PLAN.md v2 §2): one job, about 3 minutes, on GitHub's runners. One trigger per test:
-# pull_request (a PR's own CI), merge_group (GitHub's queue), pushes to jog-merge/** (Jog Merge's queue tests).
-# The sleep comes first, so a failure costs as much as a pass. It fails when the checked-out tree holds both
-# files of a clash pair. Its last step prints the tree's id.
+# market-benchmark, the yield_to_ready row only (15 Nov; put back to bench/ci.yml after the row). One job on GitHub's
+# runners, as the benchmark's, with two timings a pull request's own files choose: a merge test (a push to
+# jog-merge/**) that holds a NEW file r/<tag>/<id>.hold-<seconds> sleeps that long, and a pull request's own CI that
+# holds a NEW file r/<tag>/<id>.slow-<seconds> sleeps that long ("new" = not on main yet, so a merged PR's marker
+# times nothing after it). Anything else sleeps 170 s. A tree holding both files of a clash pair fails, as before.
 on:
   pull_request:
   merge_group:
@@ -11,12 +12,30 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: build
         run: |
-          sleep 170
+          git fetch --no-tags --depth=1 origin main
+          git ls-tree -r --name-only FETCH_HEAD > /tmp/on-main
+          kind=""
+          case "$GITHUB_EVENT_NAME" in
+            push) kind=hold ;;
+            pull_request) kind=slow ;;
+          esac
+          wait=170
+          if [ -n "$kind" ]; then
+            for f in $(git ls-files "r/*.${kind}-*"); do
+              if ! grep -qxF "$f" /tmp/on-main; then
+                s="${f##*.${kind}-}"
+                case "$s" in ''|*[!0-9]*) continue ;; esac
+                if [ "$s" -gt "$wait" ] && [ "$s" -le 900 ]; then wait="$s"; fi
+              fi
+            done
+          fi
+          echo "BENCH_SLEEP=$wait ($GITHUB_EVENT_NAME)"
+          sleep "$wait"
           bad=0
           for a in $(find . -path ./.git -prune -o -name '*.clash-a' -print); do
             if [ -e "${a%.clash-a}.clash-b" ]; then echo "both sides of ${a%.clash-a} are here"; bad=1; fi
