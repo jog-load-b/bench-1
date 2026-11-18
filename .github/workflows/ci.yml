@@ -5,7 +5,6 @@ name: ci
 # files of a clash pair. Its last step prints the tree's id.
 on:
   pull_request:
-    paths: ["r/**"]
   merge_group:
   push:
     branches: ["jog-merge/**"]
