@@ -1,0 +1,2 @@
+fail-once marker for #6886's proof
+until=1795024137
