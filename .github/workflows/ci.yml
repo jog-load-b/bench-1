@@ -27,6 +27,9 @@ jobs:
       # The proof's manifest writes the marker with until = about an hour ahead. So the re-run passes, and once the hour
       # is over every run is inert again. No fetch, no history: other rows pay one find over the tree.
       - name: flaky-once
+        # only Jog Merge's merge tests (pushes to jog-merge/**), never a PR's own CI (pull_request) or GitHub's merge
+        # group: failing a PR's own CI makes a red PR, not a flaky test (18 Nov dry run r1795019637-J, #1382)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/')
         shell: bash
         env:
           ATTEMPT: ${{ github.run_attempt }}
