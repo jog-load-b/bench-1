@@ -14,38 +14,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: b092-coe
-        # B-092 v2 r3.2 (AFT L8, test org only): b092-coe fails under continue-on-error when a PR's own
-        # r/b092-1126b/<k>/COE is in the tree (#8533's capture); b092-fault then kills the job's own hosted runner,
-        # as it does while bench/b092-1126b/fault exists or a PR's own FAULT is in the tree
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/main/')
-        continue-on-error: true
-        shell: bash
-        run: |
-          if [ -n "$(find ./r/b092-1126b -name COE -type f -print -quit 2>/dev/null)" ]; then echo "b092-coe: failing, continue-on-error"; exit 1; fi
-          echo "b092-coe: nothing to do"
-      - name: b092-fault
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/main/')
-        shell: bash
-        run: |
-          ref="refs/heads/bench/b092-1126b/fault"; why=""; closed=""
-          if [ -n "$(find ./r/b092-1126b \( -name FAULT -o -name COE \) -type f -print -quit 2>/dev/null)" ]; then why="a PR's FAULT or COE file"; fi
-          if [ -z "$why" ]; then
-            rc=1
-            for i in 1 2 3; do
-              timeout 20 git ls-remote --exit-code "https://github.com/${GITHUB_REPOSITORY}" "$ref" >/dev/null 2>&1 && rc=0 || rc=$?
-              if [ "$rc" = 0 ] || [ "$rc" = 2 ]; then break; fi
-              sleep 5
-            done
-            case "$rc" in 0) why="$ref";; 2) ;; *) closed="$rc";; esac
-          fi
-          if [ -n "$closed" ]; then echo "::notice::b092-fault: failing closed (exit $closed)"; exit 1; fi
-          if [ -z "$why" ]; then echo "b092-fault: no fault"; exit 0; fi
-          echo "b092-fault: $why: stopping this job's own runner"
-          if ! sudo -n pkill -KILL -f 'Runner[.](Listener|Worker)'; then echo "::notice::b092-fault: the runner kill failed"; exit 1; fi
-          sleep 300
-          echo "::notice::b092-fault: the runner kill didn't take"
-          exit 1
       - name: build
         run: |
           sleep 170
