@@ -14,6 +14,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: r8533-spoof
+        # Jog issue 8533's real-host repeat (test org only): on Jog Merge's test pushes this step prints GitHub's
+        # words itself and fails, as run 45767013610's b092-fault step did. A PR's own CI skips it.
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/')
+        shell: bash
+        run: |
+          echo "::error::The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled."
+          exit 1
       - name: build
         run: |
           sleep 170
