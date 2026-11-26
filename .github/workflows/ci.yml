@@ -14,28 +14,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: b092-fault
-        # B-092 (AFT L8, test org only): Jog Merge's merge tests lose their "runner" while bench/b092-1126a/fault exists,
-        # or while the tree holds r/b092-1126a/<k>/FAULT (one PR's own fault)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/')
-        shell: bash
-        run: |
-          ref="refs/heads/bench/b092-1126a/fault"; why=""
-          if [ -n "$(find ./r/b092-1126a -name FAULT -type f -print -quit 2>/dev/null)" ]; then why="a PR's FAULT file"; fi
-          if [ -z "$why" ]; then
-            rc=1
-            for i in 1 2 3; do
-              git ls-remote --exit-code "https://github.com/${GITHUB_REPOSITORY}" "$ref" >/dev/null 2>&1 && rc=0 || rc=$?
-              if [ "$rc" = 0 ]; then why="$ref"; break; fi
-              if [ "$rc" = 2 ]; then break; fi
-              sleep 5
-            done
-            if [ "$rc" != 0 ] && [ "$rc" != 2 ]; then echo "b092-fault: $ref unreadable (git exit $rc): passing"; fi
-          fi
-          if [ -z "$why" ]; then echo "b092-fault: no fault"; exit 0; fi
-          echo "b092-fault: $why"
-          echo "::error::The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled."
-          exit 1
       - name: build
         run: |
           sleep 170
