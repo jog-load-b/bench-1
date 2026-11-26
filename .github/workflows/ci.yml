@@ -1,13 +1,10 @@
 name: ci
-# market-benchmark (PLAN.md v2 §2): one job, about 3 minutes, on GitHub's runners. One trigger per test:
-# pull_request (a PR's own CI), merge_group (GitHub's queue), pushes to jog-merge/** (Jog Merge's queue tests).
-# The sleep comes first, so a failure costs as much as a pass. It fails when the checked-out tree holds both
-# files of a clash pair. Its last step prints the tree's id.
+# takeover-press-1124 (design §11): market-benchmark's bench/ci.yml less its push trigger and its flaky-once step.
+# One job, about 3 minutes. Jog Merge tests by test pull requests here, so pull_request covers its tests. It fails
+# when the checked-out tree holds both files of a clash pair. Its last step prints the tree's id.
 on:
   pull_request:
   merge_group:
-  push:
-    branches: ["jog-merge/**"]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,27 +19,6 @@ jobs:
             if [ -e "${a%.clash-a}.clash-b" ]; then echo "both sides of ${a%.clash-a} are here"; bad=1; fi
           done
           exit $bad
-      # Fail-once (#6886's 43 -> 44 proof; the lead OK'd 18 Nov): a run fails ONLY on attempt 1, and only while its tree
-      # holds a marker file under some flaky-once/ folder whose "until=<epoch seconds>" line is still in the future.
-      # The proof's manifest writes the marker with until = about an hour ahead. So the re-run passes, and once the hour
-      # is over every run is inert again. No fetch, no history: other rows pay one find over the tree.
-      - name: flaky-once
-        # only Jog Merge's merge tests (pushes to jog-merge/**), never a PR's own CI (pull_request) or GitHub's merge
-        # group: failing a PR's own CI makes a red PR, not a flaky test (18 Nov dry run r1795019637-J, #1382)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/')
-        shell: bash
-        env:
-          ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          now=$(date +%s); live=""
-          while IFS= read -r -d '' f; do
-            until=$(awk -F= '/^until=[0-9]+$/ { print $2; exit }' "$f")
-            if [ -n "$until" ] && [ "$now" -lt "$until" ]; then live="$live $f"; fi
-          done < <(find . -path ./.git -prune -o -path '*/flaky-once/*' -type f -print0)
-          if [ -z "$live" ]; then echo "flaky-once: no live marker in this tree, nothing to do"; exit 0; fi
-          if [ "$ATTEMPT" != "1" ]; then echo "flaky-once: attempt $ATTEMPT with live marker(s)$live: passing"; exit 0; fi
-          echo "flaky-once: attempt 1 with live marker(s)$live: failing once so Jog asks for a rerun"; exit 1
       - name: tree
         if: always()
         run: echo "BENCH_TREE=$(git rev-parse 'HEAD^{tree}')"
