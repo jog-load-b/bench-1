@@ -46,9 +46,3 @@ jobs:
       - name: tree
         if: always()
         run: echo "BENCH_TREE=$(git rev-parse 'HEAD^{tree}')"
-  jog-exit-8b0e9e1396f17f20:
-    needs: [build]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - run: test "${{ needs.build.result }}" = success
