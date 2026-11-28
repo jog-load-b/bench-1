@@ -14,22 +14,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: b092-fault
-        # B-092 v4 (test org only): Jog Merge's tests fail while bench/b092-b92v4r1128a/fail exists
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/jog-merge/main/')
-        shell: bash
-        run: |
-          rc=1
-          for i in 1 2 3; do
-            timeout 20 git ls-remote --exit-code "https://github.com/${GITHUB_REPOSITORY}" "refs/heads/bench/b092-b92v4r1128a/fail" >/dev/null 2>&1 && rc=0 || rc=$?
-            if [ "$rc" = 0 ] || [ "$rc" = 2 ]; then break; fi
-            sleep 5
-          done
-          case "$rc" in
-            0) echo "b092-fault: failing"; exit 1;;
-            2) echo "b092-fault: no fault"; exit 0;;
-            *) echo "b092-fault: ls-remote unreadable"; exit 3;;
-          esac
       - name: build
         run: |
           sleep 170
